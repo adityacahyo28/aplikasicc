@@ -1,4 +1,4 @@
-pipeline {
+pipeline { 
     agent any
 
     environment {
@@ -10,21 +10,21 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                echo "🔄 Checkout source code dari repo GitHub..."
+                echo "Checkout source code dari repo kamu..."
                 git branch: 'main', url: 'https://github.com/adityacahyo28/aplikasicc.git'
             }
         }
 
         stage('Build Docker Images') {
             steps {
-                echo "🐳 Build image Docker untuk Jenkins dan Android Builder..."
-                bat 'docker-compose build'
+                echo "Build Docker images menggunakan docker-compose..."
+                bat 'docker-compose build --no-cache'
             }
         }
 
-        stage('Start Containers') {
+        stage('Run Docker Containers') {
             steps {
-                echo "🚀 Menjalankan container Jenkins dan Android Builder..."
+                echo "Jalankan kembali container Jenkins dan Android Builder..."
                 bat '''
                 docker-compose down || exit 0
                 docker-compose up -d
@@ -33,22 +33,22 @@ pipeline {
             }
         }
 
-        stage('Verify Android Builder Running') {
+        stage('Verify Builder Container Running') {
             steps {
-                echo "🔍 Verifikasi container android-builder1 berjalan..."
+                echo "🔍 Verifikasi container builder Android berjalan dengan benar..."
                 bat '''
-                ping 127.0.0.1 -n 10 >nul
+                ping 127.0.0.1 -n 15 >nul
                 docker ps --filter "name=android-builder1"
-                docker logs android-builder1 --tail 15
+                docker logs android-builder1 --tail 20
                 '''
             }
         }
 
         stage('Build Android App') {
             steps {
-                echo "⚙️ Menjalankan Gradle build di dalam container android-builder1..."
+                echo "⚙️ Menjalankan build Gradle di dalam container android-builder1..."
                 bat '''
-                docker exec android-builder1 bash -c "./gradlew clean assembleDebug"
+                docker exec android-builder1 bash -c "./gradlew clean assembleDebug || ./gradlew build"
                 '''
             }
         }
@@ -56,11 +56,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Build Android App berhasil menggunakan Docker & Jenkins!"
-            bat 'docker ps'
+            echo '✅ Android App berhasil dibuild menggunakan Docker Compose!'
         }
         failure {
-            echo "❌ Build gagal, silakan cek log di Jenkins console output."
+            echo '❌ Build gagal, cek log Jenkins console output.'
             bat 'docker logs android-builder1 --tail 30'
         }
     }
