@@ -10,26 +10,22 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                echo "Checkout source code dari repo kamu..."
-                git branch: 'main', url: 'https://github.com/rama77zz/cc_appmobile.git'
+                echo "🔄 Checkout source code dari repo GitHub..."
+                git branch: 'main', url: 'https://github.com/adityacahyo28/aplikasicc.git'
             }
         }
 
         stage('Build Docker Images') {
             steps {
-                echo "Build Docker images menggunakan docker-compose..."
+                echo "🐳 Build image Docker untuk Jenkins dan Android Builder..."
                 bat 'docker-compose build'
             }
         }
 
-        stage('Run Docker Containers') {
+        stage('Start Containers') {
             steps {
-                echo "Jalankan kembali container Jenkins dan Android Builder..."
+                echo "🚀 Menjalankan container Jenkins dan Android Builder..."
                 bat '''
-                docker stop jenkins || echo "jenkins tidak berjalan"
-                docker rm jenkins || echo "jenkins sudah dihapus"
-                docker stop android-builder || echo "android-builder1 tidak berjalan"
-                docker rm android-builder || echo "android-builder1 sudah dihapus"
                 docker-compose down || exit 0
                 docker-compose up -d
                 docker ps
@@ -37,22 +33,22 @@ pipeline {
             }
         }
 
-        stage('Verify Builder Container Running') {
+        stage('Verify Android Builder Running') {
             steps {
-                echo "🔍 Verifikasi container builder Android berjalan dengan benar..."
+                echo "🔍 Verifikasi container android-builder1 berjalan..."
                 bat '''
-                ping 127.0.0.1 -n 20 >nul
+                ping 127.0.0.1 -n 10 >nul
                 docker ps --filter "name=android-builder1"
-                docker logs android-builder1 --tail 20
+                docker logs android-builder1 --tail 15
                 '''
             }
         }
 
         stage('Build Android App') {
             steps {
-                echo "⚙️ Menjalankan build Gradle di dalam container android-builder1..."
+                echo "⚙️ Menjalankan Gradle build di dalam container android-builder1..."
                 bat '''
-                docker exec android-builder1 bash -c "./gradlew clean build"
+                docker exec android-builder1 bash -c "./gradlew clean assembleDebug"
                 '''
             }
         }
@@ -60,11 +56,12 @@ pipeline {
 
     post {
         success {
-            echo 'Android App berhasil dibuild menggunakan Docker Compose!'
+            echo "✅ Build Android App berhasil menggunakan Docker & Jenkins!"
+            bat 'docker ps'
         }
         failure {
-            echo 'Build gagal, cek log Jenkins console output.'
+            echo "❌ Build gagal, silakan cek log di Jenkins console output."
+            bat 'docker logs android-builder1 --tail 30'
         }
     }
-
 }
