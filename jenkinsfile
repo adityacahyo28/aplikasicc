@@ -1,66 +1,77 @@
-pipeline { 
-    agent any
+pipeline {
+agent any
 
-    environment {
-        IMAGE_NAME = "android_builder"
-        CONTAINER_NAME = "android-builder1"
-        JENKINS_CONTAINER = "jenkinss"
-    }
+environment {
+    # Perubahan NAMA CONTAINER
+    PHP_CONTAINER = "php-app-container" 
+    BUILDER_CONTAINER = "android-builder1"
+    JENKINS_CONTAINER = "jenkinss"
+}
 
-    stages {
-        stage('Checkout Code') {
-            steps {
-                echo "Checkout source code dari repo kamu..."
-                git branch: 'main', url: 'https://github.com/adityacahyo28/aplikasicc.git'
-            }
-        }
-
-        stage('Build Docker Images') {
-            steps {
-                echo "Build Docker images menggunakan docker-compose..."
-                bat 'docker-compose build --no-cache'
-            }
-        }
-
-        stage('Run Docker Containers') {
-            steps {
-                echo "Jalankan kembali container Jenkins dan Android Builder..."
-                bat '''
-                docker-compose down || exit 0
-                docker-compose up -d
-                docker ps
-                '''
-            }
-        }
-
-        stage('Verify Builder Container Running') {
-            steps {
-                echo "🔍 Verifikasi container builder Android berjalan dengan benar..."
-                bat '''
-                ping 127.0.0.1 -n 15 >nul
-                docker ps --filter "name=android-builder1"
-                docker logs android-builder1 --tail 20
-                '''
-            }
-        }
-
-        stage('Build Android App') {
-            steps {
-                echo "⚙️ Menjalankan build Gradle di dalam container android-builder1..."
-                bat '''
-                docker exec android-builder1 bash -c "./gradlew clean assembleDebug || ./gradlew build"
-                '''
-            }
+stages {
+    stage('Checkout Code') {
+        steps {
+            echo "Checkout source code dari repo kamu..."
+            git branch: 'main', url: 'https://github.com/adityacahyo28/aplikasicc.git'
         }
     }
 
-    post {
-        success {
-            echo '✅ Android App berhasil dibuild menggunakan Docker Compose!'
+    stage('Build Docker Images') {
+        steps {
+            echo "Build Docker images menggunakan docker-compose..."
+            # Gunakan --no-cache hanya saat diperlukan
+            bat 'docker-compose build' 
         }
-        failure {
-            echo '❌ Build gagal, cek log Jenkins console output.'
-            bat 'docker logs android-builder1 --tail 30'
+    }
+
+    stage('Run Docker Containers') {
+        steps {
+            echo "Jalankan kembali container Jenkins, PHP App, dan Android Builder..."
+            bat '''
+            docker-compose down || exit 0
+            docker-compose up -d
+            docker ps
+            '''
         }
+    }
+
+    stage('Verify Builder Container Running') {
+        steps {
+            echo "🔍 Verifikasi container builder Android berjalan dengan benar..."
+            bat '''
+            ping 127.0.0.1 -n 15 >nul
+            docker ps --filter "name=%BUILDER_CONTAINER%"
+            docker logs %BUILDER_CONTAINER% --tail 20
+            '''
+        }
+    }
+
+    stage('Build Android App') {
+        steps {
+            echo "⚙️ Menjalankan build Gradle di dalam container %BUILDER_CONTAINER% (yang sudah ber-JDK)..."
+            # Perintah dieksekusi di dalam container android-builder1
+            bat "docker exec %BUILDER_CONTAINER% /bin/bash -c './gradlew clean assembleDebug || ./gradlew build'"
+        }
+    }
+    
+    # Tambahan: Stage untuk menjalankan Composer di container PHP
+    stage('Install PHP Dependencies') {
+        steps {
+            echo "📦 Menjalankan Composer install di dalam container %PHP_CONTAINER%..."
+            bat "docker exec %PHP_CONTAINER% /bin/bash -c 'composer install --no-interaction --prefer-dist --optimize-autoloader'"
+            # Catatan: Langkah ini sudah ada di Dockerfile, tetapi mengulanginya di sini lebih baik 
+            # jika Anda ingin memisahkan build image dari instalasi dependensi (Composer)
+        }
+    }
+}
+
+post {
+    success {
+        echo '✅ Pipeline berhasil! PHP App dan Android App berhasil dibuild.'
+    }
+    failure {
+        echo '❌ Build gagal, cek log Jenkins console output.'
+        bat 'docker logs %BUILDER_CONTAINER% --tail 30'
+        bat 'docker logs %PHP_CONTAINER% --tail 30'
     }
 }
