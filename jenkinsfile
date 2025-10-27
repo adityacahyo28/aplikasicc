@@ -2,7 +2,8 @@ pipeline {
 agent any
 
 environment {
-    # Perubahan NAMA CONTAINER
+    // Mengganti # menjadi // untuk komentar
+    // Perubahan NAMA CONTAINER
     PHP_CONTAINER = "php-app-container" 
     BUILDER_CONTAINER = "android-builder1"
     JENKINS_CONTAINER = "jenkinss"
@@ -19,7 +20,7 @@ stages {
     stage('Build Docker Images') {
         steps {
             echo "Build Docker images menggunakan docker-compose..."
-            # Gunakan --no-cache hanya saat diperlukan
+            // Gunakan --no-cache hanya saat diperlukan
             bat 'docker-compose build' 
         }
     }
@@ -49,18 +50,17 @@ stages {
     stage('Build Android App') {
         steps {
             echo "⚙️ Menjalankan build Gradle di dalam container %BUILDER_CONTAINER% (yang sudah ber-JDK)..."
-            # Perintah dieksekusi di dalam container android-builder1
+            // Perintah dieksekusi di dalam container android-builder1
             bat "docker exec %BUILDER_CONTAINER% /bin/bash -c './gradlew clean assembleDebug || ./gradlew build'"
         }
     }
     
-    # Tambahan: Stage untuk menjalankan Composer di container PHP
+    // Tambahan: Stage untuk menjalankan Composer di container PHP
     stage('Install PHP Dependencies') {
         steps {
             echo "📦 Menjalankan Composer install di dalam container %PHP_CONTAINER%..."
+            // Catatan: Langkah ini sudah ada di Dockerfile, tetapi mengulanginya di sini lebih baik
             bat "docker exec %PHP_CONTAINER% /bin/bash -c 'composer install --no-interaction --prefer-dist --optimize-autoloader'"
-            # Catatan: Langkah ini sudah ada di Dockerfile, tetapi mengulanginya di sini lebih baik 
-            # jika Anda ingin memisahkan build image dari instalasi dependensi (Composer)
         }
     }
 }
@@ -74,4 +74,7 @@ post {
         bat 'docker logs %BUILDER_CONTAINER% --tail 30'
         bat 'docker logs %PHP_CONTAINER% --tail 30'
     }
+}
+
+
 }
